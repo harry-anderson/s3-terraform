@@ -8,16 +8,14 @@ resource "aws_s3_bucket" "source" {
 }
 
 # IAM
-resource "aws_iam_role" "source_role" {
+resource "aws_iam_role" "source" {
   provider = aws.source
-  name     = "source_bucket_role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
         Action = "sts:AssumeRole"
         Effect = "Allow"
-        Sid    = ""
         Principal = {
           Service = "datasync.amazonaws.com"
         }
@@ -32,6 +30,7 @@ resource "aws_iam_role" "source_role" {
           Action = [
             "s3:GetBucketLocation",
             "s3:ListBucket",
+            "s3:ListObjectsV2",
             "s3:ListBucketMultipartUploads"
           ]
           Effect   = "Allow"
@@ -42,6 +41,7 @@ resource "aws_iam_role" "source_role" {
             "s3:AbortMultipartUpload",
             "s3:DeleteObject",
             "s3:GetObject",
+            "s3:ListObjectsV2",
             "s3:ListMultipartUploadParts",
             "s3:PutObject",
             "s3:GetObjectTagging",
@@ -55,3 +55,4 @@ resource "aws_iam_role" "source_role" {
     })
   }
 }
+
