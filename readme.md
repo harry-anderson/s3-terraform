@@ -28,3 +28,4 @@ RESOURCES:
 - https://stackoverflow.com/questions/72315660/import-an-existing-bucket-in-terraform
 - https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/datasync_task
 - https://developer.hashicorp.com/terraform/language/import
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy
