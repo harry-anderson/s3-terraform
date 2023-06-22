@@ -25,6 +25,7 @@ I had a go at creating the a template for the DataSync resouces ( see `task-1/ex
 Why?
 - Full managed solution, avoid the need for manage and scale a compute cluster.
 - Easy to setup, just need IAM permissions in both accounts
+- One-time or scheduled syncing
 
 Alternatives considered:
 - Use AWS s3 Batch operations
