@@ -8,6 +8,11 @@ terraform {
 }
 
 provider "aws" {
+  region  = local.source.region
+  profile = local.source.profile
+}
+
+provider "aws" {
   alias = "source"
   region  = local.source.region
   profile = local.source.profile
