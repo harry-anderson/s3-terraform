@@ -1,13 +1,5 @@
 # s3 bucket
-import {
-  to = aws_s3_bucket.dest
-  id = "harrison-ai-landing-lol"
-}
-
-resource "aws_s3_bucket" "dest" {
-  provider = aws.dest
-}
-
+# Bucket policy
 resource "aws_s3_bucket_policy" "allow_access_from_source" {
   provider = aws.dest
   bucket   = aws_s3_bucket.dest.id
@@ -19,10 +11,9 @@ data "aws_iam_policy_document" "allow_access_from_source" {
   statement {
     principals {
       type        = "AWS"
-      identifiers = ["${aws_iam_role.source.arn}"]
+      identifiers = [aws_iam_role.datasync_source_access.arn]
     }
     actions = [
-      "s3:ListObjectsV2",
       "s3:GetBucketLocation",
       "s3:ListBucket",
       "s3:ListBucketMultipartUploads",
@@ -39,14 +30,30 @@ data "aws_iam_policy_document" "allow_access_from_source" {
       "arn:aws:s3:::${aws_s3_bucket.dest.arn}/*"
     ]
   }
+  statement {
+    principals {
+      type = "AWS"
+      identifiers = [
+        "${data.aws_caller_identity.source.account_id}"
+      ]
+    }
+    actions = [
+      "s3:ListObjectsV2",
+      "s3:ListBucket",
+    ]
+    resources = [
+      "arn:aws:s3:::${aws_s3_bucket.dest.arn}",
+      "arn:aws:s3:::${aws_s3_bucket.dest.arn}/*"
+    ]
+  }
 }
 
-// the data sync destination
+// Data sync destination location
 resource "aws_datasync_location_s3" "dest" {
   provider      = aws.dest
   s3_bucket_arn = aws_s3_bucket.dest.arn
   subdirectory  = "/${aws_s3_bucket.source.id}"
   s3_config {
-    bucket_access_role_arn = aws_iam_role.source.arn
+    bucket_access_role_arn = aws_iam_role.datasync_dest_access.arn
   }
 }
