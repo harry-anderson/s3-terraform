@@ -1,5 +1,4 @@
 ## Task 1
-> NOTE: I'm not familliar with using terraform inside docker. I have listed the steps just using terraform installed on my local machine.
 
 ### How to import buckets
 To import the existing resources I have used an `import` block in `main.tf`. 
