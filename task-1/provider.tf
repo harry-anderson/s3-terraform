@@ -12,3 +12,9 @@ provider "aws" {
   region  = local.source.region
   profile = local.source.profile
 }
+
+provider "aws" {
+  alias = "dest"
+  region  = local.dest.region
+  profile = local.dest.profile
+}
