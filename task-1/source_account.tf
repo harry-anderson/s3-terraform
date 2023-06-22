@@ -10,8 +10,7 @@ resource "aws_s3_bucket" "source" {
 # IAM
 resource "aws_iam_role" "source_role" {
   provider = aws.source
-  name = "source_bucket_role"
-
+  name     = "source_bucket_role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
