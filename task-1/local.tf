@@ -1,6 +1,12 @@
 locals {
-  region  = "ap-southeast-2"
-  profile = "default"
-  source_bucket = "annalise-ai-datalake-lol"
-  dest_bucket = "harrison-ai-landing-lol"
+  source = {
+    profile = "default"
+    bucket = "annalise-ai-datalake-lol"
+    region = "ap-southeast-2"
+  }
+  dest = {
+    profile = "default"
+    bucket = "harrison-ai-landing-lol"
+    region = "ap-southeast-2"
+  }
 }
