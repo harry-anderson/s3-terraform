@@ -1,3 +1,5 @@
+# add different source and destination locals
+# for independant configuration
 locals {
   source = {
     profile = "default"

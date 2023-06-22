@@ -94,9 +94,7 @@ resource "aws_iam_role" "datasync_source_access" {
   }
 }
 
-##
 ## DATA SYNC
-##
 resource "aws_datasync_location_s3" "source" {
   provider      = aws.source
   s3_bucket_arn = aws_s3_bucket.source.arn
