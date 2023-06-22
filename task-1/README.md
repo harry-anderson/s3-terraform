@@ -1,4 +1,5 @@
 ## Task 1
+> Please note: I was not familiar with using terraform and docker-compose. I have used terraform on my local machine.
 
 ### How to import buckets
 To import the existing resources I have used an `import` block in `main.tf`. 
