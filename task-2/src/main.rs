@@ -1,7 +1,12 @@
+use std::{sync::Arc, time::Duration};
+
 use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_s3::{config::Region, Client, Error};
 use structopt::StructOpt;
-use tokio::sync::mpsc::{channel, Receiver, Sender, UnboundedReceiver, UnboundedSender};
+use tokio::sync::{
+    mpsc::{channel, Receiver, Sender, UnboundedReceiver, UnboundedSender},
+    Semaphore,
+};
 use tracing::{error, info};
 
 #[derive(Debug, StructOpt)]
@@ -13,15 +18,31 @@ struct Opt {
     /// The name of the bucket.
     #[structopt(short, long)]
     bucket: String,
+
+    /// The name of the sqs queue URL
+    #[structopt(short, long)]
+    queue_url: String,
 }
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
 
+    let Opt {
+        region,
+        bucket,
+        queue_url,
+    } = Opt::from_args();
+    let region_provider = RegionProviderChain::first_try(region.map(Region::new))
+        .or_default_provider()
+        .or_else(Region::new("us-east-1"));
+    let shared_config = aws_config::from_env().region(region_provider).load().await;
+    let s3_client = aws_sdk_s3::Client::new(&shared_config);
+    let sqs_client = aws_sdk_sqs::Client::new(&shared_config);
+
     let (tx, rx) = channel(256);
-    let list_obj = tokio::spawn(enumerate_objects(tx));
-    let push_sqs = tokio::spawn(push_sqs(rx));
+    let list_obj = tokio::spawn(enumerate_objects(s3_client, bucket, tx));
+    let push_sqs = tokio::spawn(push_sqs(sqs_client, queue_url, rx));
 
     tokio::select! {
         _ = list_obj => {}
@@ -30,16 +51,12 @@ async fn main() {
 }
 
 // Lists the objects in a bucket.
-async fn enumerate_objects(tx: Sender<String>) -> Result<(), Error> {
-    let Opt { region, bucket } = Opt::from_args();
-    let region_provider = RegionProviderChain::first_try(region.map(Region::new))
-        .or_default_provider()
-        .or_else(Region::new("us-east-1"));
-    let shared_config = aws_config::from_env().region(region_provider).load().await;
-    let client = Client::new(&shared_config);
-
+async fn enumerate_objects(
+    client: aws_sdk_s3::Client,
+    bucket: String,
+    tx: Sender<String>,
+) -> Result<(), Error> {
     let mut marker: Option<String> = None;
-
     loop {
         let resp = client
             .list_objects_v2()
@@ -63,10 +80,7 @@ async fn enumerate_objects(tx: Sender<String>) -> Result<(), Error> {
         // if last page of data, break
         // else update the marker
         if resp.is_truncated() {
-            let Some(token) = resp.next_continuation_token() else {
-                break Ok(())
-            };
-            marker = Some(token.to_string())
+            marker = resp.next_continuation_token().map(String::from)
         } else {
             break Ok(());
         }
@@ -74,9 +88,27 @@ async fn enumerate_objects(tx: Sender<String>) -> Result<(), Error> {
 }
 
 // Push keys to sqs
-async fn push_sqs(mut rx: Receiver<String>) -> Result<(), Error> {
+async fn push_sqs(
+    client: aws_sdk_sqs::Client,
+    queue_url: String,
+    mut rx: Receiver<String>,
+) -> Result<(), Error> {
+    // limit inflight tasks
+    let semaphore = Arc::new(Semaphore::new(10));
+    let mut join_handles = Vec::new();
+
     while let Some(key) = rx.recv().await {
-        info!("push {}", key)
+        let permit = semaphore.clone().acquire_owned().await.unwrap();
+        join_handles.push(tokio::spawn(async move {
+            // perform task...
+            info!("push {}", key);
+            // explicitly own `permit` in the task
+            drop(permit);
+        }));
+    }
+
+    for handle in join_handles {
+        handle.await.unwrap();
     }
 
     Ok(())
