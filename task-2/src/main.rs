@@ -34,8 +34,7 @@ async fn main() {
 
 // Lists the objects in a bucket.
 async fn show_objects(client: &Client, bucket: &str) -> Result<(), Error> {
-    let resp = client.list_objects_v2().bucket(bucket).max_keys(5).send().await?;
-    info!("{:?}", resp);
+    let resp = client.list_objects_v2().bucket(bucket).send().await?;
 
     for object in resp.contents().unwrap_or_default() {
         info!("{}", object.key().unwrap_or_default());
