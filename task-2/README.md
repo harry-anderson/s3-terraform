@@ -7,5 +7,5 @@ aws s3 sync . s3://harryloltest
 
 ### Run the script
 ```
-cargo run -- --region us-east-1 --bucket harryloltest
+cargo run -- --region us-east-1 --bucket harryloltest --queue-url https://sqs...
 ```

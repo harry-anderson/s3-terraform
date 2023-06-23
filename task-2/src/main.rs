@@ -1,3 +1,4 @@
+use serde::Serialize;
 use std::{sync::Arc, time::Duration};
 
 use aws_config::meta::region::RegionProviderChain;
@@ -40,13 +41,13 @@ async fn main() {
     let s3_client = aws_sdk_s3::Client::new(&shared_config);
     let sqs_client = aws_sdk_sqs::Client::new(&shared_config);
 
-    let (tx, rx) = channel(256);
+    let (tx, rx) = channel::<Message>(256);
     let list_obj = tokio::spawn(enumerate_objects(s3_client, bucket, tx));
     let push_sqs = tokio::spawn(push_sqs(sqs_client, queue_url, rx));
 
-    tokio::select! {
-        _ = list_obj => {}
-        _ = push_sqs => {}
+    let (_, _) = tokio::join! {
+        list_obj,
+        push_sqs
     };
 }
 
@@ -54,13 +55,13 @@ async fn main() {
 async fn enumerate_objects(
     client: aws_sdk_s3::Client,
     bucket: String,
-    tx: Sender<String>,
+    tx: Sender<Message>,
 ) -> Result<(), Error> {
     let mut marker: Option<String> = None;
     loop {
         let resp = client
             .list_objects_v2()
-            .max_keys(1) // testing
+            .max_keys(3) // testing
             .set_continuation_token(marker)
             .bucket(&bucket)
             .send()
@@ -70,7 +71,11 @@ async fn enumerate_objects(
             match object.key() {
                 None => error!("obj has no key",),
                 Some(key) => {
-                    if tx.send(key.to_string()).await.is_err() {
+                    let msg = Message {
+                        bucket: bucket.clone(),
+                        key: key.to_string(),
+                    };
+                    if tx.send(msg).await.is_err() {
                         error!("receiver droppped")
                     }
                 }
@@ -87,21 +92,52 @@ async fn enumerate_objects(
     }
 }
 
+#[derive(Debug, Serialize)]
+struct Message {
+    bucket: String,
+    key: String,
+}
+
 // Push keys to sqs
 async fn push_sqs(
     client: aws_sdk_sqs::Client,
     queue_url: String,
-    mut rx: Receiver<String>,
+    mut rx: Receiver<Message>,
 ) -> Result<(), Error> {
     // limit inflight tasks
-    let semaphore = Arc::new(Semaphore::new(10));
+    let count = 10;
+    let client = Arc::new(client);
+    let semaphore = Arc::new(Semaphore::new(count));
     let mut join_handles = Vec::new();
 
-    while let Some(key) = rx.recv().await {
+    while let Some(msg) = rx.recv().await {
         let permit = semaphore.clone().acquire_owned().await.unwrap();
+        let queue_url_c = queue_url.clone();
+        let client_c = client.clone();
         join_handles.push(tokio::spawn(async move {
-            // perform task...
-            info!("push {}", key);
+            // send to sqs
+            let json = serde_json::to_string(&msg).unwrap();
+
+            let rsp = client_c
+                .send_message()
+                .queue_url(queue_url_c)
+                .message_body(&json)
+                .send()
+                .await;
+
+            // log the queued message or error
+            match rsp {
+                Ok(resp) => {
+                    let id = resp.message_id().unwrap_or_default();
+                    let md5 = resp.md5_of_message_body().unwrap_or_default();
+                    info!("queued {} {} {}", msg.key, id, md5);
+                }
+                Err(e) => {
+                    // Should handle resending msg here
+                    error!("queue failed {:?}", e);
+                }
+            }
+
             // explicitly own `permit` in the task
             drop(permit);
         }));
