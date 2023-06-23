@@ -8,7 +8,7 @@ aws s3 sync . s3://<your bucket>
 ### Run the script
 Assuming your queue and bucket are in the same `region`.
 ```
-cargo run -- --region us-east-1 --bucket harryloltest --queue-url https://sqs.us-east-1.amazonaws.com/962586598999/MyQueue --prefix prefix_a
+cargo run -- --region us-east-1 --bucket harryloltest --queue-url https://sqs... --prefix prefix_a
 
 ```
 ```
