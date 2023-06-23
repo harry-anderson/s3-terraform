@@ -37,20 +37,40 @@ async fn enumerate_objects(tx: Sender<String>) -> Result<(), Error> {
         .or_else(Region::new("us-east-1"));
     let shared_config = aws_config::from_env().region(region_provider).load().await;
     let client = Client::new(&shared_config);
-    let resp = client.list_objects_v2().bucket(bucket).send().await?;
 
-    for object in resp.contents().unwrap_or_default() {
-        match object.key() {
-            None => error!("obj has no key",),
-            Some(s) => {
-                if tx.send(s.to_string()).await.is_err() {
-                    error!("receiver droppped")
+    let mut marker: Option<String> = None;
+
+    loop {
+        let resp = client
+            .list_objects_v2()
+            .max_keys(1) // testing
+            .set_continuation_token(marker)
+            .bucket(&bucket)
+            .send()
+            .await?;
+
+        for object in resp.contents().unwrap_or_default() {
+            match object.key() {
+                None => error!("obj has no key",),
+                Some(key) => {
+                    if tx.send(key.to_string()).await.is_err() {
+                        error!("receiver droppped")
+                    }
                 }
             }
         }
-    }
 
-    Ok(())
+        // if last page of data, break
+        // else update the marker
+        if resp.is_truncated() {
+            let Some(token) = resp.next_continuation_token() else {
+                break Ok(())
+            };
+            marker = Some(token.to_string())
+        } else {
+            break Ok(());
+        }
+    }
 }
 
 // Push keys to sqs
