@@ -72,7 +72,7 @@ async fn enumerate_objects(
     loop {
         let resp = client
             .list_objects_v2()
-            .max_keys(3) // testing
+            // .max_keys(3) // for testing
             .set_continuation_token(marker)
             .bucket(&bucket)
             .send()
@@ -102,6 +102,7 @@ async fn enumerate_objects(
         }
     }
 }
+
 // Push keys to sqs
 async fn push_sqs(
     client: aws_sdk_sqs::Client,
@@ -121,7 +122,6 @@ async fn push_sqs(
         join_handles.push(tokio::spawn(async move {
             // send to sqs
             let json = serde_json::to_string(&msg).unwrap();
-
             let rsp = client_c
                 .send_message()
                 .queue_url(queue_url_c)
