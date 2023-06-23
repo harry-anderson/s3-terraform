@@ -21,6 +21,10 @@ struct Opt {
     /// The name of the sqs queue URL
     #[structopt(short, long)]
     queue_url: String,
+    
+    /// Limit listing to s3 prefix
+    #[structopt(short, long)]
+    prefix: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -39,6 +43,7 @@ async fn main() {
         region,
         bucket,
         queue_url,
+        prefix,
     } = Opt::from_args();
 
     // setup AWS clients
@@ -51,20 +56,21 @@ async fn main() {
 
     // two async tasks connected with channel
     let (tx, rx) = channel::<Message>(2000);
-    let list_obj = tokio::spawn(enumerate_objects(s3_client, bucket, tx));
-    let push_sqs = tokio::spawn(push_sqs(sqs_client, queue_url, rx));
+    let pager = tokio::spawn(s3_pager(s3_client, bucket, prefix, tx));
+    let sender = tokio::spawn(send_sqs(sqs_client, queue_url, rx));
 
     // run tasks and drop the result for now
     let (_, _) = tokio::join! {
-        list_obj,
-        push_sqs
+        pager,
+        sender
     };
 }
 
 // Lists the objects in a bucket.
-async fn enumerate_objects(
+async fn s3_pager(
     client: aws_sdk_s3::Client,
     bucket: String,
+    prefix: Option<String>,
     tx: Sender<Message>,
 ) -> Result<(), Error> {
     let mut marker: Option<String> = None;
@@ -72,6 +78,7 @@ async fn enumerate_objects(
         let resp = client
             .list_objects_v2()
             // .max_keys(3) // for testing
+            .set_prefix(prefix.clone())
             .set_continuation_token(marker)
             .bucket(&bucket)
             .send()
@@ -103,7 +110,7 @@ async fn enumerate_objects(
 }
 
 // Push keys to sqs
-async fn push_sqs(
+async fn send_sqs(
     client: aws_sdk_sqs::Client,
     queue_url: String,
     mut rx: Receiver<Message>,
