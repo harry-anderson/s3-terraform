@@ -25,15 +25,25 @@ struct Opt {
     queue_url: String,
 }
 
+#[derive(Debug, Serialize)]
+struct Message {
+    bucket: String,
+    key: String,
+}
+
 #[tokio::main]
 async fn main() {
+    // Logging
     tracing_subscriber::fmt::init();
 
+    // Read args
     let Opt {
         region,
         bucket,
         queue_url,
     } = Opt::from_args();
+
+    // setup AWS clients
     let region_provider = RegionProviderChain::first_try(region.map(Region::new))
         .or_default_provider()
         .or_else(Region::new("us-east-1"));
@@ -41,6 +51,7 @@ async fn main() {
     let s3_client = aws_sdk_s3::Client::new(&shared_config);
     let sqs_client = aws_sdk_sqs::Client::new(&shared_config);
 
+    // two async tasks connected with channel
     let (tx, rx) = channel::<Message>(256);
     let list_obj = tokio::spawn(enumerate_objects(s3_client, bucket, tx));
     let push_sqs = tokio::spawn(push_sqs(sqs_client, queue_url, rx));
@@ -91,13 +102,6 @@ async fn enumerate_objects(
         }
     }
 }
-
-#[derive(Debug, Serialize)]
-struct Message {
-    bucket: String,
-    key: String,
-}
-
 // Push keys to sqs
 async fn push_sqs(
     client: aws_sdk_sqs::Client,
