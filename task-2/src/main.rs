@@ -1,13 +1,11 @@
-use serde::Serialize;
-use std::{sync::Arc, time::Duration};
-
 use aws_config::meta::region::RegionProviderChain;
-use aws_sdk_s3::{config::Region, Client, Error};
+use aws_sdk_s3::config::Region;
+use aws_sdk_s3::Error;
+use serde::Serialize;
+use std::sync::Arc;
 use structopt::StructOpt;
-use tokio::sync::{
-    mpsc::{channel, Receiver, Sender, UnboundedReceiver, UnboundedSender},
-    Semaphore,
-};
+use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::Semaphore;
 use tracing::{error, info};
 
 #[derive(Debug, StructOpt)]
@@ -56,6 +54,7 @@ async fn main() {
     let list_obj = tokio::spawn(enumerate_objects(s3_client, bucket, tx));
     let push_sqs = tokio::spawn(push_sqs(sqs_client, queue_url, rx));
 
+    // run tasks and drop the result for now
     let (_, _) = tokio::join! {
         list_obj,
         push_sqs
