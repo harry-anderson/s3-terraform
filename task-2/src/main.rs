@@ -50,7 +50,7 @@ async fn main() {
     let sqs_client = aws_sdk_sqs::Client::new(&shared_config);
 
     // two async tasks connected with channel
-    let (tx, rx) = channel::<Message>(256);
+    let (tx, rx) = channel::<Message>(2000);
     let list_obj = tokio::spawn(enumerate_objects(s3_client, bucket, tx));
     let push_sqs = tokio::spawn(push_sqs(sqs_client, queue_url, rx));
 
@@ -109,7 +109,7 @@ async fn push_sqs(
     mut rx: Receiver<Message>,
 ) -> Result<(), Error> {
     // limit inflight tasks
-    let count = 10;
+    let count = 2000;
     let client = Arc::new(client);
     let semaphore = Arc::new(Semaphore::new(count));
     let mut join_handles = Vec::new();
