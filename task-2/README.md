@@ -20,10 +20,45 @@ cargo run -- --region us-east-1 --bucket harryloltest --queue-url https://sqs.us
 
 ```
 
+### How it works
+Two async tasks:
+- `pager` pages through s3 keys using `list_objectsV2` and send each key over a channel to `sender`.
+- `sender` sends the keys as messages to SQS and (possibly) handles deduplication and resending failed messages.
+
+```
+
+pager -> channel -> sender -> sqs
+
+```
+
+### Speed up the bucket listing process for very large buckets containing millions of objects
+
+Limits:
+- Paging: Limited to about 1000 keys per page
+- Sending: I'm not sure there is a quota limit on sending messages (max / messages per second).
+
+I would try to divide the bucket keys into chunks/shards and then have a pool of `pager`s, each listing a unqiue shard of s3 keys concurrently.
+
+How to Divide keys?
+- Using prefixes eg `pager_1` gets `prefix_a/` and `pager_2` gets `prefix_b/`. They page together and not worry about colliding.
+- `ListObjectsV2` API returns keys in a specific order. So you can using the `start_after` and `max_keys` parameters to divide the keys into chunks.
+
+### Make the process idempotent
+To make the process idempotent, I would introduce a `cache` layer using distributed key value store like DynamoDB or Redis.
+The `sender` checks if the key is in the `cache` before sending the message to SQS.
+
+```
+
+pager -> channel -> sender -> cache -> sqs
+
+```
+
 ### RESOURCES USED
 aws rust sdk examples
 - https://github.com/awslabs/aws-sdk-rust/tree/main/examples/sqs
 - https://github.com/awslabs/aws-sdk-rust/tree/main/examples/s3
+- https://docs.rs/aws-sdk-s3/latest/aws_sdk_s3/operation/list_objects_v2/builders/struct.ListObjectsV2FluentBuilder.html
+- https://docs.aws.amazon.com/AmazonS3/latest/userguide/ListingKeysUsingAPIs.html
 
 rust semaphore
 - https://github.com/tokio-rs/tokio/discussions/2648
