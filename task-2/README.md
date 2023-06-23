@@ -22,7 +22,7 @@ cargo run -- --region us-east-1 --bucket harryloltest --queue-url https://sqs...
 
 ### How it works
 Two async tasks:
-- `pager` pages through s3 keys using `list_objectsV2` and send each key over a channel to `sender`.
+- `pager` pages through s3 keys using [list_objects_v2](https://docs.rs/aws-sdk-s3/latest/aws_sdk_s3/operation/list_objects_v2/builders/struct.ListObjectsV2FluentBuilder.html) and send each key over a channel to `sender`.
 - `sender` sends the keys as messages to SQS and (possibly) handles deduplication and resending failed messages.
 
 ```
