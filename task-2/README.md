@@ -2,10 +2,18 @@
 ### make fake files in s3
 ```
 cd files/
-aws s3 sync . s3://harryloltest
+aws s3 sync . s3://<your bucket>
 ```
 
 ### Run the script
 ```
-cargo run -- --region us-east-1 --bucket harryloltest --queue-url https://sqs...
+cargo run -- --region us-east-1 --bucket <your bucket> --queue-url <https://sqs...>
 ```
+
+### RESOURCES USED
+aws rust sdk examples
+- https://github.com/awslabs/aws-sdk-rust/tree/main/examples/sqs
+- https://github.com/awslabs/aws-sdk-rust/tree/main/examples/s3
+
+rust semaphore
+https://github.com/tokio-rs/tokio/discussions/2648
