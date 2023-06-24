@@ -44,7 +44,7 @@ How to Divide keys?
 - `ListObjectsV2` API returns keys in a specific order. So you can using the `start_after` and `max_keys` parameters to divide the keys into chunks.
 
 ### Make the process idempotent
-To make the process idempotent, I would introduce a `cache` layer using distributed key value store like DynamoDB or Redis.
+To make the process idempotent, I would introduce a `cache` layer. The type of cache I think depends on if you need Strong or Eventual consistency e.g how important deduplication of keys?.
 The `sender` checks if the key is in the `cache` before sending the message to SQS.
 
 ```
