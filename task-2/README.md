@@ -27,7 +27,7 @@ Two async tasks:
 
 ```
 
-pager -> channel -> sender -> sqs
+s3 -> pager -> sender -> sqs
 
 ```
 
@@ -39,7 +39,17 @@ Limits:
 
 I would try to divide the bucket keys into chunks/shards and then have a pool of `pager`s, each listing a unqiue shard of s3 keys concurrently.
 
-How to Divide keys?
+```
+
+s3/shard1 -> pager -> sender -> sqs
+s3/shard2 -> pager -> sender -> sqs
+s3/shard3 -> pager -> sender -> sqs
+s3/shard4 -> pager -> sender -> sqs
+s3/shard5 -> pager -> sender -> sqs
+
+```
+
+How to divide keys?
 - Using prefixes eg `pager_1` gets `prefix_a/` and `pager_2` gets `prefix_b/`. They page together and not worry about colliding.
 - `ListObjectsV2` API returns keys in a specific order. So you can using the `start_after` and `max_keys` parameters to divide the keys into chunks.
 
@@ -49,16 +59,13 @@ The `sender` checks if the key is in the `cache` before sending the message to S
 
 ```
 
-pager -> channel -> sender -> cache -> sqs
+s3/shard -> pager -> sender -> cache -> sqs
 
 ```
 
 ### RESOURCES USED
-aws rust sdk examples
 - https://github.com/awslabs/aws-sdk-rust/tree/main/examples/sqs
 - https://github.com/awslabs/aws-sdk-rust/tree/main/examples/s3
 - https://docs.rs/aws-sdk-s3/latest/aws_sdk_s3/operation/list_objects_v2/builders/struct.ListObjectsV2FluentBuilder.html
 - https://docs.aws.amazon.com/AmazonS3/latest/userguide/ListingKeysUsingAPIs.html
-
-rust semaphore
 - https://github.com/tokio-rs/tokio/discussions/2648
