@@ -1,5 +1,5 @@
 ## Task 2
-### make fake files in s3
+### Make fake files in s3 for testing
 ```
 cd files/
 aws s3 sync . s3://<your bucket>
