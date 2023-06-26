@@ -1,4 +1,5 @@
 
+data "aws_caller_identity" "source" {}
 # IAM
 resource "aws_iam_role" "datasync_dest_access" {
   provider = aws.source

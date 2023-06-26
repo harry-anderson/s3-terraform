@@ -26,8 +26,8 @@ data "aws_iam_policy_document" "allow_access_from_source" {
       "s3:PutObjectTagging"
     ]
     resources = [
-      "arn:aws:s3:::${aws_s3_bucket.dest.arn}",
-      "arn:aws:s3:::${aws_s3_bucket.dest.arn}/*"
+      aws_s3_bucket.dest.arn,
+      "${aws_s3_bucket.dest.arn}/*"
     ]
   }
   statement {
@@ -42,8 +42,8 @@ data "aws_iam_policy_document" "allow_access_from_source" {
       "s3:ListBucket",
     ]
     resources = [
-      "arn:aws:s3:::${aws_s3_bucket.dest.arn}",
-      "arn:aws:s3:::${aws_s3_bucket.dest.arn}/*"
+      aws_s3_bucket.dest.arn,
+      "${aws_s3_bucket.dest.arn}/*"
     ]
   }
 }
